@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+dist/
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Tooling / cache
+.turbo/
+.vercel/
+
+# OS / editor junk
+.DS_Store
+.vscode/
