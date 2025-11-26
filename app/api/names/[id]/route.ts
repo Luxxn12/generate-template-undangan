@@ -5,14 +5,19 @@ import { NextResponse } from "next/server"
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const { name } = await request.json()
+    const { name, phone } = await request.json()
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 })
     }
 
     const supabase = await createClient()
-    const { data, error } = await supabase.from("names").update({ name: name.trim() }).eq("id", id).select().single()
+    const { data, error } = await supabase
+      .from("names")
+      .update({ name: name.trim(), phone: phone ? String(phone).trim() : null })
+      .eq("id", id)
+      .select()
+      .single()
 
     if (error) throw error
     return NextResponse.json(data)

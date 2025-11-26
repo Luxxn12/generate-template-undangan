@@ -8,6 +8,9 @@ interface PreviewSectionProps {
   selectedName: string
   setSelectedName: (name: string) => void
   renderTemplate: (name: string) => string
+  getPhoneForName: (name: string) => string | null | undefined
+  sentNames: string[]
+  onMarkSent: (name: string) => void
 }
 
 export default function PreviewSection({
@@ -16,6 +19,9 @@ export default function PreviewSection({
   selectedName,
   setSelectedName,
   renderTemplate,
+  getPhoneForName,
+  sentNames,
+  onMarkSent,
 }: PreviewSectionProps) {
   const [copiedName, setCopiedName] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -30,7 +36,8 @@ export default function PreviewSection({
   const handleShareWhatsApp = (name: string) => {
     const renderedText = renderTemplate(name)
     const encodedText = encodeURIComponent(renderedText)
-    const whatsappUrl = `https://wa.me/?text=${encodedText}`
+    const phone = (getPhoneForName(name) || "").replace(/\D/g, "")
+    const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`
     window.open(whatsappUrl, "_blank")
   }
 
@@ -38,6 +45,7 @@ export default function PreviewSection({
 
   const currentName = selectedName || filteredNames[0] || names[0]
   const rendered = renderTemplate(currentName)
+  const isSent = sentNames.includes(currentName)
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-8">
@@ -99,12 +107,16 @@ export default function PreviewSection({
         </button>
 
         <button
-          onClick={() => handleShareWhatsApp(currentName)}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
+          onClick={() => {
+            handleShareWhatsApp(currentName)
+            onMarkSent(currentName)
+          }}
+          disabled={isSent}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-green-100 hover:bg-green-200 text-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           title="Share ke WhatsApp"
         >
           <MessageCircle className="w-4 h-4" />
-          <span>Kirim ke WhatsApp</span>
+          <span>{isSent ? "Sudah dikirim" : "Kirim ke WhatsApp"}</span>
         </button>
       </div>
 

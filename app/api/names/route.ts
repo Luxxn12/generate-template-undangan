@@ -18,7 +18,7 @@ export async function GET() {
 // POST new name
 export async function POST(request: Request) {
   try {
-    const { name } = await request.json()
+    const { name, phone } = await request.json()
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 })
     }
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("names")
-      .insert([{ name: name.trim() }])
+      .insert([{ name: name.trim(), phone: phone ? String(phone).trim() : null }])
       .select()
       .single()
 
@@ -35,5 +35,22 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(" Error adding name:", error)
     return NextResponse.json({ error: "Failed to add name" }, { status: 500 })
+  }
+}
+
+// DELETE all names
+export async function DELETE() {
+  try {
+    const supabase = await createClient()
+    const { error, count } = await supabase
+      .from("names")
+      .delete({ count: "exact" })
+      .not("id", "is", null)
+
+    if (error) throw error
+    return NextResponse.json({ success: true, deleted: count ?? 0 })
+  } catch (error) {
+    console.error(" Error deleting all names:", error)
+    return NextResponse.json({ error: "Failed to delete names" }, { status: 500 })
   }
 }

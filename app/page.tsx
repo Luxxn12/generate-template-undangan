@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import FileUploadSection from "@/components/file-upload-section"
 import TemplateEditorSection from "@/components/template-editor-section"
 import PreviewSection from "@/components/preview-section"
@@ -12,7 +12,10 @@ import { AlertCircle, CheckCircle2, Download } from "lucide-react"
 interface NameItem {
   id: string
   name: string
+  phone?: string | null
 }
+
+type NameEntry = { name: string; phone?: string }
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null)
@@ -31,6 +34,7 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [sentNames, setSentNames] = useState<string[]>([])
 
   useEffect(() => {
     loadNames()
@@ -107,7 +111,11 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
       }
 
       const data = await response.json()
-      await addNamesToDatabase(data.names || [])
+      const entries: NameEntry[] =
+        data.entries ||
+        (Array.isArray(data.names) ? data.names.map((name: string) => ({ name })) : [])
+
+      await addNamesToDatabase(entries)
       setStatus("success")
     } catch (err) {
       setStatus("error")
@@ -117,13 +125,14 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
     }
   }
 
-  const addNamesToDatabase = async (newNames: string[]) => {
+  const addNamesToDatabase = async (newNames: NameEntry[]) => {
     try {
-      for (const name of newNames) {
+      const cleanNames = newNames.filter((entry) => entry.name && entry.name.trim().length > 0)
+      for (const entry of cleanNames) {
         const response = await fetch("/api/names", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name: entry.name, phone: entry.phone }),
         })
         if (!response.ok) throw new Error("Failed to add name")
       }
@@ -134,7 +143,7 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
     }
   }
 
-  const handleAddNames = async (newNames: string[]) => {
+  const handleAddNames = async (newNames: NameEntry[]) => {
     try {
       await addNamesToDatabase(newNames)
       setStatus("idle")
@@ -158,12 +167,25 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
     }
   }
 
-  const handleUpdateName = async (id: string, newName: string) => {
+  const handleDeleteAllNames = async () => {
+    try {
+      const response = await fetch("/api/names", { method: "DELETE" })
+      if (!response.ok) throw new Error("Failed to delete all names")
+      await loadNames()
+      setSentNames([])
+    } catch (err) {
+      console.error(" Error deleting all names:", err)
+      setStatus("error")
+      setErrorMessage("Gagal menghapus semua nama")
+    }
+  }
+
+  const handleUpdateName = async (id: string, newValue: { name: string; phone?: string | null }) => {
     try {
       const response = await fetch(`/api/names/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({ name: newValue.name, phone: newValue.phone }),
       })
       if (!response.ok) throw new Error("Failed to update name")
       await loadNames()
@@ -225,19 +247,29 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
   }
 
   const renderTemplate = (name: string): string => {
-    return template.replace(/\{\{nama\}\}/g, name)
+    const safeName = name.trim().replace(/\s+/g, "+")
+    return template.replace(/\{\{nama\}\}/g, safeName)
   }
 
-  const namesList = names.map((n) => n.name)
+  const markAsSent = (name: string) => {
+    setSentNames((prev) => (prev.includes(name) ? prev : [...prev, name]))
+  }
+
+  const namesList = useMemo(() => names.map((n) => n.name), [names])
+
+  useEffect(() => {
+    // Keep sent markers in sync if daftar nama berubah
+    setSentNames((prev) => prev.filter((name) => namesList.includes(name)))
+  }, [namesList])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4 md:px-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">Generator Template Excel</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">Generator Template Undangan</h1>
           <p className="text-lg text-slate-600">
-            Upload file Excel atau tambah nama, buat template, dan generate dokumen dengan mudah
+            Upload file Excel atau tambah nama, phone buat template, dan generate dokumen dengan mudah
           </p>
         </div>
 
@@ -271,6 +303,9 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
               selectedName={selectedName}
               setSelectedName={setSelectedName}
               renderTemplate={renderTemplate}
+              getPhoneForName={(name) => names.find((n) => n.name === name)?.phone || null}
+              sentNames={sentNames}
+              onMarkSent={markAsSent}
             />
           </div>
         )}
@@ -307,6 +342,9 @@ Terima kasih banyak atas perhatian dan doa restunya.`,
             renderTemplate={renderTemplate}
             onDelete={handleDeleteName}
             onUpdate={handleUpdateName}
+            sentNames={sentNames}
+            onMarkSent={markAsSent}
+            onDeleteAll={handleDeleteAllNames}
           />
         )}
 

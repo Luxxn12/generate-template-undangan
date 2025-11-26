@@ -9,7 +9,7 @@ import Spinner from "@/components/spinner"
 
 interface FileUploadSectionProps {
   onFileUpload: (file: File) => void
-  onAddNames: (names: string[]) => void
+  onAddNames: (names: { name: string; phone?: string }[]) => void
   isUploading?: boolean
 }
 
@@ -17,9 +17,9 @@ export default function FileUploadSection({ onFileUpload, onAddNames, isUploadin
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragActive, setIsDragActive] = useState(false)
   const [fileName, setFileName] = useState<string>("")
-  const [showManualInput, setShowManualInput] = useState(false)
   const [manualName, setManualName] = useState("")
-  const [manualNames, setManualNames] = useState<string[]>([])
+  const [manualPhone, setManualPhone] = useState("")
+  const [manualNames, setManualNames] = useState<{ name: string; phone?: string }[]>([])
   const [isAddingManual, setIsAddingManual] = useState(false)
 
   const handleDrag = (e: React.DragEvent) => {
@@ -61,20 +61,23 @@ export default function FileUploadSection({ onFileUpload, onAddNames, isUploadin
 
   const handleAddName = async () => {
     const trimmedName = manualName.trim()
-    if (trimmedName && !manualNames.includes(trimmedName)) {
-      setIsAddingManual(true)
-      const updatedNames = [...manualNames, trimmedName]
-      setManualNames(updatedNames)
-      setManualName("")
-      await onAddNames(updatedNames)
-      setIsAddingManual(false)
-    }
+    if (!trimmedName) return
+    const entry = { name: trimmedName, phone: manualPhone.trim() || undefined }
+    const exists = manualNames.some((n) => n.name === entry.name && (n.phone || "") === (entry.phone || ""))
+    if (exists) return
+
+    setIsAddingManual(true)
+    const updatedNames = [...manualNames, entry]
+    setManualNames(updatedNames)
+    setManualName("")
+    setManualPhone("")
+    await onAddNames([entry])
+    setIsAddingManual(false)
   }
 
   const handleRemoveName = (index: number) => {
     const updatedNames = manualNames.filter((_, i) => i !== index)
     setManualNames(updatedNames)
-    onAddNames(updatedNames)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -142,6 +145,15 @@ export default function FileUploadSection({ onFileUpload, onAddNames, isUploadin
             disabled={isAddingManual}
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
           />
+          <input
+            type="text"
+            value={manualPhone}
+            onChange={(e) => setManualPhone(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Nomor WhatsApp (opsional)"
+            disabled={isAddingManual}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+          />
           <Button
             onClick={handleAddName}
             disabled={isAddingManual}
@@ -169,7 +181,10 @@ export default function FileUploadSection({ onFileUpload, onAddNames, isUploadin
                   key={index}
                   className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-900"
                 >
-                  <span>{name}</span>
+                  <span>
+                    {name.name}
+                    {name.phone ? ` · ${name.phone}` : ""}
+                  </span>
                   <button
                     onClick={() => handleRemoveName(index)}
                     className="text-blue-600 hover:text-blue-700 transition-colors"

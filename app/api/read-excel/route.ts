@@ -15,14 +15,20 @@ export async function POST(request: NextRequest) {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]]
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
-    // Extract names from first column (skip header)
-    const names = data
+    // Extract names (col A) and optional phone (col B)
+    const entries = data
       .slice(1)
-      .map((row: any) => row[0])
-      .filter((name: any) => name && String(name).trim() !== "")
-      .map((name: any) => String(name).trim())
+      .map((row: any) => {
+        const name = row[0]
+        const phone = row[1]
+        return {
+          name: name ? String(name).trim() : "",
+          phone: phone ? String(phone).trim() : undefined,
+        }
+      })
+      .filter((entry: any) => entry.name !== "")
 
-    return NextResponse.json({ names })
+    return NextResponse.json({ entries })
   } catch (error) {
     console.error("Error reading Excel:", error)
     return NextResponse.json({ error: "Failed to read Excel file" }, { status: 500 })
